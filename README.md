@@ -1,7 +1,9 @@
 
 MVC library for Metro apps using JS/HTML5/CSS3
+==============================================
 
-== Goals ==
+Goals
+-----
 
 - Make application architecture implicit in the configuration
 - Optimize performance and memory use and loading of pages/scripts/resources
