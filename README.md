@@ -6,7 +6,7 @@ Goals
 -----
 
 - Make application architecture implicit in the configuration
-- Optimize performance and memory use and loading of pages/scripts/resources
-- Reduce glue code and boiler-plate
-- Promote maintainability/decoupling/reuse through OO constructs and MVC architecture
+- Optimize performance, memory use and loading of pages/scripts/resources
+- Reduce glue code and boilerplate
+- Promote maintainability, decoupling and reuse through OO constructs and MVC architecture
 - Be user-friendly, intuitive and intelligent
