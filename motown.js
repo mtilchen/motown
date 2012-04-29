@@ -13,8 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with Motown.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Motown.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 (function () {
@@ -52,12 +52,12 @@
       }
 
       // Register with WinJS nav system
-      var self = this;
+      var me = this;
       WinJS.Navigation.addEventListener('beforenavigate', function (e) {
-        self.onBeforeNavigate(e.detail.location, e.detail.state, e);
+        me.onBeforeNavigate(e.detail.location, e.detail.state, e);
       });
       WinJS.Navigation.addEventListener('navigating', function (e) {
-        self.onNavigate(e.detail.location, e.detail.state, e);
+        me.onNavigate(e.detail.location, e.detail.state, e);
       });
 
       // Setup the app's namespace if specified
@@ -67,6 +67,11 @@
       else {
         this.namespace = window;
       }
+
+      // Setup converter functions for use in bindings
+      Object.keys(this.converters || {}).forEach(function(name) {
+        me.converters[name] = new WinJS.Binding.converter(me.converters[name]);
+      });
     },{
       // Information about the applications activation, save from the activation event
       activationDetails: null,
@@ -169,7 +174,7 @@
         }
         else {  // User used 'navigate'
           previousIdx = backStack.length ? this._pageMap[backStack[backStack.length - 1].location]
-                                      : null;
+                                         : null;
         }
 
         previous = controllerCache[previousIdx];
@@ -178,7 +183,9 @@
           self._element.appendChild(controller.viewEl);
           if (previous) {
             WinJS.Promise.as(previous.beforeNavigateOut()).then(function() {
-              self._element.removeChild(self._element.firstElementChild);               return controller._processBindings().then(function() {                 return WinJS.Promise.as(controller.beforeNavigateIn());
+              self._element.removeChild(self._element.firstElementChild);
+              return controller._processBindings().then(function() {
+                return WinJS.Promise.as(controller.beforeNavigateIn());
             });
           }).done(function () {
             controller.afterNavigateIn();
@@ -271,9 +278,9 @@
 
       if (names.length) {
         for (i = 0, l = names.length; i < l; i++) {
-          pairs[i] = [names[i], params[names[i]]].join('=');
+          pairs[i] = [names[i], encodeURIComponent(params[names[i]])].join('=');
         }
-        return [base, pairs.join['&']].join('?');
+        return [base, pairs.join('&')].join('?');
       }
       else {
         return base;
@@ -399,6 +406,85 @@
     })
   });
 
+  // IListDataAdapter implementation used by KeyedDataSource below
+  var keyedDataAdapter = WinJS.Class.define(function(feeds) {
+    this._items = Array.isArray(feeds) ? feeds : [];
+    this._keyMap = {};
+
+    // Turn all the plain objects into WinJS.UI.IItem-like objects, and make the data bindable too
+    for (var i = 0, l = feeds.length; i < l; i++) {
+      this._items[i] = {
+        key: this._items[i].id,
+        data: WinJS.Binding.as(this._items[i]),
+        index: i
+      };
+      this._keyMap[this._items[i].data.id] = this._items[i];
+    }
+  }, {
+    getCount: function() {
+      return WinJS.Promise.wrap(this._items.length);
+    },
+    itemsFromIndex: function(requestIndex, countBefore, countAfter) {
+      var len = this._items.length;
+
+      if (requestIndex >= len || requestIndex < 0) {
+        return WinJS.Promise.wrapError(new WinJS.ErrorFromName(WinJS.UI.FetchError.doesNotExist));
+      }
+
+      return WinJS.Promise.wrap({
+        items: this._items.slice(0, len),
+        offset: requestIndex,
+        totalCount: len
+      });
+    },
+    itemsFromKey: function(key, countBefore, countAfter, hints) {
+      var item = this._keyMap[key];
+
+      if (!item) {
+        var err = new WinJS.ErrorFromName(WinJS.UI.FetchError.doesNotExist);
+        err.key = key;
+        return WinJS.Promise.wrapError(err);
+      }
+
+      return WinJS.Promise.wrap({
+        items: this._items,
+        offset: item.index,
+        absoluteIndex: item.index,
+        totalCount: this._items.length
+      });
+    },
+    insertAtEnd: function(key, data) {
+      key = key || data.id;
+      var item = {
+        data: data,
+        key: key,
+        handle: key
+      };
+
+      item.index = this._items.push(item) - 1;
+      this._keyMap[data.id] = item;
+      return WinJS.Promise.wrap(item);
+    },
+    remove: function(key) {
+
+      var item = this._keyMap[key],
+        len = this._items.length;
+
+      if (item && (item.index < len)) {
+        var idx = item.index;
+        if (this._items.splice(idx, 1).length) {
+          // re-index the items after the removed item
+          for (var i = idx; i < (len - 1); i++) {
+            item = this._items[i];
+            item.index = item.index - 1;
+          }
+          delete this._keyMap[key];
+        }
+      }
+      return WinJS.Promise.wrap(null);
+    }
+  });
+
   WinJS.Namespace.defineWithParent(MT, 'UI', {
     // Allows users to specify "dot separated" paths to WinJS.UI.ListView datasources as Strings in data-win-options.
     // For templates the Strings are interpreted as DOM ids or paths relative to the owner controller's refs object.
@@ -439,6 +525,31 @@
                                      WinJS.Utilities.query('#' + config.groupHeaderTemplate, containingView).get(0);
       }
       this._super.constructor.call(this, el, config);
+    }),
+    KeyedDataSource: WinJS.Class.derive(WinJS.UI.VirtualizedDataSource, function(items) {
+
+      var adapter = new keyedDataAdapter(items);
+      this._baseDataSourceConstructor(adapter);
+
+      // Use the closure pattern here as MS went to great lengths not to expose the adapter in the datasource, let's do the same
+      this.containsKey = function(key) {
+        return !!adapter._keyMap[key];
+      };
+      this.getKeys = function() {
+        return Object.keys(adapter._keyMap);
+      };
+      this.get = function(key) {
+        return (adapter._keyMap[key] || {}).data;
+      };
+      this.getAt = function(idx) {
+        return (adapter._items[idx] || {}).data;
+      };
+      Object.defineProperty(this, 'length', {
+        get: function() {
+          return adapter._items.length;
+        },
+        configurable: false
+      });
     })
   });
 
