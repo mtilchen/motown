@@ -407,20 +407,16 @@
   });
 
   // IListDataAdapter implementation used by KeyedDataSource below
-  var keyedDataAdapter = WinJS.Class.define(function(feeds) {
-    this._items = Array.isArray(feeds) ? feeds : [];
-    this._keyMap = {};
+  var keyedDataAdapter = WinJS.Class.define(function(items, options) {
+    options = options || {};
+    this._binding = options.binding;
+    this._keyProperty = options.keyProperty || 'key';
 
-    // Turn all the plain objects into WinJS.UI.IItem-like objects, and make the data bindable too
-    for (var i = 0, l = feeds.length; i < l; i++) {
-      this._items[i] = {
-        key: this._items[i].id,
-        data: WinJS.Binding.as(this._items[i]),
-        index: i
-      };
-      this._keyMap[this._items[i].data.id] = this._items[i];
-    }
-  }, {
+    this._initItems(items, true);
+  },{
+    setNotificationHandler: function(handler) {
+      this._notificationHandler = handler;
+    },
     getCount: function() {
       return WinJS.Promise.wrap(this._items.length);
     },
@@ -447,41 +443,105 @@
       }
 
       return WinJS.Promise.wrap({
-        items: this._items,
+        items: this._items.slice(0, this._items.length),
         offset: item.index,
         absoluteIndex: item.index,
         totalCount: this._items.length
       });
     },
     insertAtEnd: function(key, data) {
-      key = key || data.id;
       var item = {
         data: data,
-        key: key,
-        handle: key
+        key: key || data[this._keyProperty]
       };
 
-      item.index = this._items.push(item) - 1;
-      this._keyMap[data.id] = item;
+      this._items.push(item);
+      this._keyMap[item.key] = item;
+
       return WinJS.Promise.wrap(item);
     },
-    remove: function(key) {
-
+    moveAfter: function(key, prevKey, currIdx, prevItemIdx) {
       var item = this._keyMap[key],
-        len = this._items.length;
+          newIdx = prevItemIdx + 1,
+          delta = (newIdx > currIdx ? 0 : 1);
 
-      if (item && (item.index < len)) {
-        var idx = item.index;
-        if (this._items.splice(idx, 1).length) {
-          // re-index the items after the removed item
-          for (var i = idx; i < (len - 1); i++) {
-            item = this._items[i];
-            item.index = item.index - 1;
-          }
-          delete this._keyMap[key];
-        }
+      if (item._moved) {
+        delete item._moved;
+      }
+      else {
+        this._items.splice(newIdx, 0, item);
+        this._items.splice(currIdx + delta, 1);
+      }
+
+      return WinJS.Promise.wrap(null);
+    },
+    moveToStart: function(key) {
+      var item = this._keyMap[key];
+
+      // Index may not have been assigned by WinJS Datasource internals yet
+      if (typeof item.index !== 'number') {
+        item.index = this._findIndex(item);
+      }
+      if (item._moved) {
+        delete item._moved;
+      }
+      else if (item.index > 0) {
+        this._items.splice(item.index, 1);
+        this._items.splice(0, 0, item);
       }
       return WinJS.Promise.wrap(null);
+    },
+    remove: function(key) {
+      var item = this._keyMap[key],
+          items = this._items,
+          idx = -1,
+          i, len = this._items.length;
+
+      if (item) {
+        if (item.hasOwnProperty('index')) {
+          idx = item.index;
+        }
+        else {
+          idx = this._findIndex(item);
+        }
+      }
+
+      if (idx >= 0) {
+        items.splice(idx, 1);
+        delete this._keyMap[key];
+      }
+      return WinJS.Promise.wrap(null);
+    },
+    // 30% faster than 'indexOf' on IE 10
+    _findIndex: function(item) {
+      var items = this._items,
+          len = items.length,
+          i;
+
+      for (i = 0; i < len; i++) {
+        if (item === items[i]) {
+          return i;
+        }
+      }
+      return -1;
+    },
+    _initItems: function(data, preventReload) {
+      var key, items, i, l;
+
+      this._items = items = Array.isArray(data) ? data : [];
+      this._keyMap = {};
+
+      // Turn all the plain objects into WinJS.UI.IItem-like objects, making them bindable if configured to
+      for (i = 0, l = items.length; i < l; i++) {
+        key = items[i][this._keyProperty];
+        items[i] = {
+          key: key,
+          data: this._binding ? WinJS.Binding.as(items[i]) : items[i]
+        };
+        this._keyMap[key] = items[i];
+      }
+
+      if (!preventReload) { this._notificationHandler.reload(); }
     }
   });
 
@@ -526,9 +586,9 @@
       }
       this._super.constructor.call(this, el, config);
     }),
-    KeyedDataSource: WinJS.Class.derive(WinJS.UI.VirtualizedDataSource, function(items) {
+    KeyedDataSource: WinJS.Class.derive(WinJS.UI.VirtualizedDataSource, function(items, options) {
 
-      var adapter = new keyedDataAdapter(items);
+      var adapter = new keyedDataAdapter(items, options);
       this._baseDataSourceConstructor(adapter);
 
       // Use the closure pattern here as MS went to great lengths not to expose the adapter in the datasource, let's do the same
@@ -543,6 +603,40 @@
       };
       this.getAt = function(idx) {
         return (adapter._items[idx] || {}).data;
+      };
+      this.setData = function(data) {
+        adapter._initItems(data);
+      };
+      this.sort = function(sortFn) {
+        var len = adapter._items.length,
+            items = adapter._items,
+            item, prevKey,
+            i;
+
+        items.sort(function(a, b) {
+          return sortFn(a.data, b.data);
+        });
+
+        // Look for items that changed position due to the sort. Notify of changes
+        this.beginEdits();
+        for (i = 0; i < len; i++) {
+          item = items[i];
+          if (i !== item.index) {
+            prevKey = (i === 0 ? null : items[i - 1].key);
+            if (!prevKey) {
+              // This is item has already been moved in the array by the sort.
+              // Mark it so the moveToStart function will not try to move it again.
+              item._moved = true;
+              this.moveToStart(item.key);
+            }
+            else {
+              // See above
+              item._moved = true;
+              this.moveAfter(item.key, prevKey);
+            }
+          }
+        }
+        this.endEdits();
       };
       Object.defineProperty(this, 'length', {
         get: function() {
@@ -592,4 +686,3 @@
 
   app.start();
 })();
-
