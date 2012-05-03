@@ -491,6 +491,22 @@
       }
       return WinJS.Promise.wrap(null);
     },
+    moveToEnd: function(key) {
+      var item = this._keyMap[key];
+
+      // Index may not have been assigned by WinJS Datasource internals yet
+      if (typeof item.index !== 'number') {
+        item.index = this._findIndex(item);
+      }
+      if (item._moved) {
+        delete item._moved;
+      }
+      else if (item.index < (this._items.length - 1)) {
+        this._items.splice(item.index, 1);
+        this._items.push(item);
+      }
+      return WinJS.Promise.wrap(null);
+    },
     remove: function(key) {
       var item = this._keyMap[key],
           items = this._items,
