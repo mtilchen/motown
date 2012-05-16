@@ -1,6 +1,9 @@
 
 # _Motown_: An MVC library for Metro apps using JS/HTML5/CSS3 #
 
+Motown is designed to help you build Metro-style apps that are maintainable and have great performance, with as
+little code as possible. Smaller applications are easy and large complex applications are possible.
+
 ## Goals ##
 
 + Reduce glue code and boilerplate

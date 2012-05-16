@@ -142,7 +142,6 @@
         // Runs after DOMContentLoaded, use it to initialize global state
       init: function() {},
       onActivation: function (kind, previousState, e) {
-        // Save the launch information so the rest of the app can look at it if needed
         if (kind === Windows.ApplicationModel.Activation.ActivationKind.launch) {
           WinJS.Navigation.navigate(this.homePage);
         }
@@ -164,6 +163,7 @@
             forwardStack = WinJS.Navigation.history.forwardStack,
             delta = e.detail.delta,
             previous, previousIdx, // previousIdx === index of previous controller in controllerCache
+            context = {},
             self = this;
 
         if (delta < 0) { // User went back
@@ -173,6 +173,7 @@
           previousIdx = this._pageMap[backStack[Math.max(0, backStack.length - delta)].location];
         }
         else {  // User used 'navigate'
+          context = Object.create(state || {});
           previousIdx = backStack.length ? this._pageMap[backStack[backStack.length - 1].location]
                                          : null;
         }
@@ -180,23 +181,25 @@
         previous = controllerCache[previousIdx];
 
         this._loadPage(location).done(function (controller) {
-          self._element.appendChild(controller.viewEl);
           if (previous) {
-            WinJS.Promise.as(previous.beforeNavigateOut()).then(function() {
-              self._element.removeChild(self._element.firstElementChild);
-              return controller._processBindings().then(function() {
-                return WinJS.Promise.as(controller.beforeNavigateIn());
+            WinJS.Promise.as(previous.beforeNavigateOut(context)).then(function() {
+                self._element.removeChild(self._element.firstElementChild);
+                return WinJS.Promise.as(previous.afterNavigateOut(context));
+            }).then(function() {
+              self._element.appendChild(controller.viewEl);
+              return WinJS.Promise.as(controller.beforeNavigateIn(context)).then(function() {
+                return controller._processBindings();
+              });
+            }).done(function() {
+              controller.afterNavigateIn(context);
             });
-          }).done(function () {
-            controller.afterNavigateIn();
-             previous.afterNavigateOut();
-           });
          }
          else {
-           controller._processBindings().then(function() {
-             return WinJS.Promise.as(controller.beforeNavigateIn());
+            self._element.appendChild(controller.viewEl);
+            WinJS.Promise.as(controller.beforeNavigateIn(context)).then(function() {
+             return controller._processBindings();
            }).done(function () {
-             controller.afterNavigateIn();
+             controller.afterNavigateIn(context);
           });
          }
         });
@@ -397,10 +400,10 @@
         }
       },
       viewReady: function() {},
-      beforeNavigateIn: function() {},
-      afterNavigateIn: function() {},
-      beforeNavigateOut: function() {},
-      afterNavigateOut: function() {},
+      beforeNavigateIn: function(context) {},
+      afterNavigateIn: function(context) {},
+      beforeNavigateOut: function(context) {},
+      afterNavigateOut: function(context) {},
       viewEl: null,
       refs: null
     })
@@ -414,6 +417,12 @@
 
     this._initItems(items, true);
   },{
+    beginEdits: function() {
+      this._editing = true;
+    },
+    endEdits: function() {
+      this._editing = false;
+    },
     setNotificationHandler: function(handler) {
       this._notificationHandler = handler;
     },
@@ -510,8 +519,7 @@
     remove: function(key) {
       var item = this._keyMap[key],
           items = this._items,
-          idx = -1,
-          i, len = this._items.length;
+          idx;
 
       if (item) {
         if (item.hasOwnProperty('index')) {
@@ -520,11 +528,10 @@
         else {
           idx = this._findIndex(item);
         }
-      }
-
-      if (idx >= 0) {
-        items.splice(idx, 1);
-        delete this._keyMap[key];
+        if (idx >= 0) {
+          items.splice(idx, 1);
+          delete this._keyMap[key];
+        }
       }
       return WinJS.Promise.wrap(null);
     },
@@ -625,6 +632,7 @@
       };
       this.sort = function(sortFn) {
         var len = adapter._items.length,
+            editing = adapter._editing,
             items = adapter._items,
             item, prevKey,
             i;
@@ -633,8 +641,10 @@
           return sortFn(a.data, b.data);
         });
 
-        // Look for items that changed position due to the sort. Notify of changes
-        this.beginEdits();
+        // Look for items that changed position due to the sort.
+        if (!editing) {
+          this.beginEdits();
+        }
         for (i = 0; i < len; i++) {
           item = items[i];
           if (i !== item.index) {
@@ -652,7 +662,9 @@
             }
           }
         }
-        this.endEdits();
+        if (!editing) {
+          this.endEdits();
+        }
       };
       Object.defineProperty(this, 'length', {
         get: function() {
@@ -666,13 +678,37 @@
   Object.preventExtensions(MT);
   Object.freeze(MT.UI);
 
-  // Set up a debug log and turn on first chance exceptions
-  if (console.dir && window.Debug) { // We are running in a debug configuration
+  // Set up a debug log, turn on first chance exceptions and log uncaught exceptions
+  if (window.Debug && console.dir) { // We are running in a debug configuration
     Debug.enableFirstChanceException(true);
     WinJS.Utilities.startLog('debug');
     console.debug = function(msg) {
       var log = ['[', (new Date()).toISOString(), ']: ', msg];
       WinJS.log(log.join(''), 'debug');
+    };
+
+    WinJS.Promise.onerror = function(e) {
+      var ex = e.detail.exception || e.detail.error,
+        i, len;
+
+      ex = Array.isArray(ex) ? ex : [ex];
+
+      for (i = 0, len = ex.length; i < len; i++) {
+        if (ex[i] && (ex[i] instanceof Error)) {
+          if (ex[i].stack) {
+            console.error(ex[i].stack);
+          }
+          else {
+            console.error(ex[i].name + ': ' + ex[i].message);
+          }
+        }
+      }
+    };
+
+    window.onerror = function(msg, url, line) {
+      console.error('Error: ' + msg);
+      console.error('File: ' + url);
+      console.error('Line: ' + line);
     };
   }
   else {
@@ -680,6 +716,7 @@
   }
 
   app.onactivated = function(e) {
+    // Save the launch information so the rest of the app can look at it if needed
       contentLoadedPromise.done(function() {
         Object.defineProperty(MT.App, 'activationDetails', {
           value: e.detail,
