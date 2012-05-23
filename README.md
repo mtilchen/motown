@@ -1,8 +1,8 @@
 
-# _Motown_: An MVC library for Metro apps using JS/HTML5/CSS3 #
+# _Motown_: An MVC library for Metro-style apps targeting JS/HTML5/CSS3 #
 
 Motown is designed to help you build Metro-style apps that are maintainable and have great performance, with as
-little code as possible. Smaller applications are easy and large complex applications are possible.
+little code as possible. It makes smaller applications easy and larger complex applications possible.
 
 ## Goals ##
 
@@ -16,7 +16,7 @@ little code as possible. Smaller applications are easy and large complex applica
 
 + Advanced stateful page navigation system with lifecycle hooks and WinJS.Navigation integration
 + Declarative "Refs" and "Actions" to easily hook your UI up to your application's logic and keep it loosely coupled
-+ Metro-style application lifecycle integration for handling launch/suspend/resume
++ WinRT application lifecycle integration for handling launch/suspend/resume
 + Reduced application configuration in favor of familiar conventions
 + Debug logging facility that is disabled when your app is not running in the debugger
 + Exception logging (w/stacktraces) originating from Promises to help debug async code

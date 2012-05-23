@@ -7,21 +7,20 @@
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
+ *
  * Motown is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with Motown.  If not, see <http://www.gnu.org/licenses/>.
+ * bundled with Motown.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 (function () {
   "use strict";
 
-  var app = WinJS.Application,
-      controllerCache = [],
+  var controllerCache = [],
       contentLoadedPromise;
 
   WinJS.Namespace.define('MT', {
@@ -29,24 +28,24 @@
 
       MT.apply(this, config || {});
 
-      if (!this.pages || !this.pages.length) {
-        throw new Error('You must include an array of "pages" in your configuration');
+      if (!Array.isArray(this.pages) || !this.pages.length) {
+        throw 'You must include an array of "pages" in your configuration';
       }
 
       Object.defineProperties(this, {
-        _pageDefs:      { value: {},      enumerable: false, configurable: false, writable: false },
-        _pageMap: { value: {},      enumerable: false, configurable: false, writable: false },
-        _element:       { value: element, enumerable: false, configurable: false, writable: false }
+        _pageDefs:          { value: {},      enumerable: false, configurable: false, writable: false },
+        _pageMap:           { value: {},      enumerable: false, configurable: false, writable: false },
+        _controllerCtorMap: { value: {},      enumerable: false, configurable: false, writable: false },
+        _element:           { value: element, enumerable: false, configurable: false, writable: false }
       });
 
       // Setup page definitions
       for (var i = 0, l = this.pages.length; i < l; i++) {
         var def = this.pages[i];
         if (typeof def === 'string') {
-          this._pageDefs[def] = { config: {} }; // Empty definition, uses defaults
+          this._pageDefs[def] = {}; // Empty definition, uses defaults
         }
         else if (def && (typeof def === 'object')) {
-          def.config = def.config || {};
           this._pageDefs[def.name] = def;
         }
       }
@@ -61,13 +60,25 @@
       });
 
       // Setup the app's namespace if specified
-      if (typeof this.namespace === 'string') {
+      if ((typeof this.namespace === 'string') && this.namespace.length) {
         this.namespace = WinJS.Namespace.define(this.namespace);
       }
       else {
         this.namespace = window;
       }
 
+      // Add key listeners that listen on the bubble up phase, allowing other listeners to go the first.
+      // Dispatch to the active controller, The active controller is the one associated with the currently
+      // active view. It should be the only one present in the DOM
+      ['keypress', 'keyup', 'keydown'].forEach(function(ename) {
+        var methodName = 'key' + ename[3].toUpperCase() + ename.slice(4);
+        document.body.addEventListener(ename, function(ev) {
+          var view = WinJS.Utilities.query('div[data-motown-owner-index]')[0],
+              idx = parseInt(view.getAttribute('data-motown-owner-index')),
+              controller = controllerCache[idx];
+          controller[methodName](ev);
+        }, false);
+      });
       // Setup converter functions for use in bindings
       Object.keys(this.converters || {}).forEach(function(name) {
         me.converters[name] = new WinJS.Binding.converter(me.converters[name]);
@@ -79,33 +90,51 @@
       homePage: 'home',
       // Maps the page's name to an index of a controller in the controllerCache
       _pageMap: null,
+      _activeController: null,
+      _controllerCtorMap: null,
       // Find a controller constructor function for the given page name
       _resolveController: function(name) {
 
         var controllerClassName = (name.charAt(0).toUpperCase() + name.slice(1) + 'Controller'),
-            def = this._pageDefs[name],
-            ctor;
+            pageDef = this._pageDefs[name],
+            controllerCtorKey = pageDef.controller || controllerClassName,
+            ctor = this._controllerCtorMap[controllerCtorKey];
 
-        if (def.controller) { // User specfified controller class
-          if (this.namespace[def.controller]) {
-            ctor = this.namespace[def.controller]; // We found the controller in the application's namespace
+        // We have already resolved a controller with this key
+        if (ctor) {
+          return ctor;
+        }
+
+        // Load controller JS file dynamically before looking for the constructor function
+        var s = document.createElement('script'),
+            head = document.getElementsByTagName('head')[0],
+            // 'a.b.c.ControllerName -> controllers/a/b/c/ControllerName.js
+            path = 'controllers/' + controllerCtorKey.replace('.', '/') + '.js',
+            resourceMap = Windows.ApplicationModel.Resources.Core.ResourceManager.current.mainResourceMap;
+
+        try {
+          if (resourceMap.hasKey('Files/' + path)) {
+            s.setAttribute('src', path);
+            // This should be asynchronous but isn't in this environment, so no need for a Promise
+            head.appendChild(s);
           }
-          else {  // User may have specified a fully qualified name or a controller from another namespace
-            ctor = window;
-            def.controller.split('.').forEach(function(path) {
-              ctor = ctor[path];
-              if (!ctor) {
-                throw new Error ('Controller could not be found: ' + def.controller);
-              }
-            });
+        }
+        catch (e) { /* This should not throw according to the docs, but it does. We can safely ignore it. */ }
+
+        // Use 'controllerClass' when fully qualified name for a controller class differs from its path on disk
+        if (pageDef.controllerClass) {
+          ctor = WinJS.Utilities.getMember(pageDef.controllerClass, window);
+          if (!ctor) {
+            throw new Error('Controller class could not be found: ' + pageDef.controllerClass);
           }
         }
-        else if (this.namespace[controllerClassName]) { // Look for a controller name following naming conventions
-          ctor = this.namespace[controllerClassName];
+        else {
+          // Look for specified controller in our namespace -> conventional name in our namespace -> default
+          ctor = this.namespace[pageDef.controller] || this.namespace[controllerClassName] || MT.PageController;
         }
-        else { // Use the default controller by default
-          ctor = MT.PageController;
-        }
+
+        // Cache the resolution
+        this._controllerCtorMap[controllerCtorKey] = ctor;
         return ctor;
       },
       // Loads the page's view and controller, returns the controller
@@ -164,7 +193,7 @@
             delta = e.detail.delta,
             previous, previousIdx, // previousIdx === index of previous controller in controllerCache
             context = {},
-            self = this;
+            me = this;
 
         if (delta < 0) { // User went back
           previousIdx = this._pageMap[forwardStack[Math.max(0, forwardStack.length + delta)].location];
@@ -183,10 +212,10 @@
         this._loadPage(location).done(function (controller) {
           if (previous) {
             WinJS.Promise.as(previous.beforeNavigateOut(context)).then(function() {
-                self._element.removeChild(self._element.firstElementChild);
+                me._element.removeChild(me._element.firstElementChild);
                 return WinJS.Promise.as(previous.afterNavigateOut(context));
             }).then(function() {
-              self._element.appendChild(controller.viewEl);
+              me._element.appendChild(controller.viewEl);
               return WinJS.Promise.as(controller.beforeNavigateIn(context)).then(function() {
                 return controller._processBindings();
               });
@@ -195,7 +224,7 @@
             });
          }
          else {
-            self._element.appendChild(controller.viewEl);
+            me._element.appendChild(controller.viewEl);
             WinJS.Promise.as(controller.beforeNavigateIn(context)).then(function() {
              return controller._processBindings();
            }).done(function () {
@@ -207,7 +236,7 @@
     }),
 
     apply: function(dst, src) {
-      var props = Object.keys(src),
+      var props = Object.keys(src || {}),
           i, l;
 
       for (i = 0, l = props.length; i < l; i++) {
@@ -353,7 +382,7 @@
                 self[action](e);
               }, false);
             }
-            // Otherwise, the action is a string for a dynamic function
+              // Otherwise, the action is a string for a dynamic function
             else {
               var dynamicFunc = new Function('e', action);
               el.addEventListener(eName, function(e) {
@@ -396,14 +425,17 @@
         if (this.viewEl) {
           this._processRefs();
           this._processActions();
-          this.viewReady();
+          this.viewReady(this.viewEl);
         }
       },
-      viewReady: function() {},
+      viewReady: function(view) {},
       beforeNavigateIn: function(context) {},
       afterNavigateIn: function(context) {},
       beforeNavigateOut: function(context) {},
       afterNavigateOut: function(context) {},
+      keyPress: function (e) {},
+      keyUp: function(e) {},
+      keyDown: function (e) { },
       viewEl: null,
       refs: null
     })
@@ -570,7 +602,7 @@
 
   WinJS.Namespace.defineWithParent(MT, 'UI', {
     // Allows users to specify "dot separated" paths to WinJS.UI.ListView datasources as Strings in data-win-options.
-    // For templates the Strings are interpreted as DOM ids or paths relative to the owner controller's refs object.
+    // For templates, the Strings are interpreted as DOM ids or paths relative to the owner controller's refs object.
     // Paths for datasources are relative to the owning controller. The owner controller is found by
     // looking up the ListView's ancestry for the containing "view" and retrieving the controller from the cache with
     // the value of the 'data-motown-owner-index' attribute for the first 'view' element found in the ancestry.
@@ -715,7 +747,7 @@
     console.debug = function() { /* no-op */ };
   }
 
-  app.onactivated = function(e) {
+  WinJS.Application.onactivated = function(e) {
     // Save the launch information so the rest of the app can look at it if needed
       contentLoadedPromise.done(function() {
         Object.defineProperty(MT.App, 'activationDetails', {
@@ -728,7 +760,7 @@
       });
   };
 
-  app.oncheckpoint = function(e) {
+  WinJS.Application.oncheckpoint = function(e) {
     MT.App.onCheckpoint(e);
   };
 
@@ -737,5 +769,5 @@
     MT.App.onResume(e);
   };
 
-  app.start();
+  WinJS.Application.start();
 })();
