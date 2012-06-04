@@ -149,7 +149,7 @@
             throw new Error('No page definition found for: ' + name);
           }
 
-          return MT.loadView(def.view || name).then(function(viewEl) {
+          return MT.loadView(def.view || name, def.viewCls).then(function(viewEl) {
 
             // This must be done after the view has loaded because the controller's code may be loaded in a script tag in the view
             var ctor = self._resolveController(name),
@@ -246,21 +246,21 @@
     },
 
     // Returns a Promise w/ completion value of the loaded view's element (WinJS.UI.processAll is NOT called)
-    loadView: function(view) {
+    loadView: function(view, viewCls) {
       var viewName = view.replace(/.html$/,''),
           viewPath = '/views/' + viewName + '.html',
           viewEl = document.createElement('div');
 
       WinJS.Utilities.addClass(viewEl, 'motown-view');
-      WinJS.Utilities.addClass(viewEl, viewName.replace('/', '-')); // View @ /views/viewcategory/viewname.html gets class: viewcategory-viewname
+      WinJS.Utilities.addClass(viewEl, viewCls || viewName.replace('/', '-')); // View @ /views/viewcategory/viewname.html gets class: viewcategory-viewname
 
       return WinJS.UI.Fragments.renderCopy(viewPath, viewEl);
     },
 
     // Takes a view name and controller instance, loads the view and hooks it up to the controller and returns a Promise that provides the controller as its value
-    loadPage: function(view, controller) {
+    loadPage: function(controller, view, viewCls) {
       if (view && controller) {
-        return MT.loadView(view).then(function (viewEl) {
+        return MT.loadView(view, viewCls).then(function (viewEl) {
             var idx = controllerCache.length;
 
             controllerCache[idx] = controller;
@@ -639,7 +639,7 @@
         config.groupHeaderTemplate = (viewOwner.refs[config.groupHeaderTemplate] || {}).element ||
                                      WinJS.Utilities.query('#' + config.groupHeaderTemplate, containingView).get(0);
       }
-      this._super.constructor.call(this, el, config);
+      WinJS.UI.ListView.call(this, el, config);
     }),
     KeyedDataSource: WinJS.Class.derive(WinJS.UI.VirtualizedDataSource, function(items, options) {
 
@@ -712,7 +712,7 @@
 
   // Set up a debug log, turn on first chance exceptions and log uncaught exceptions
   if (window.Debug && console.dir) { // We are running in a debug configuration
-    Debug.enableFirstChanceException(true);
+    //Debug.enableFirstChanceException(true);
     WinJS.Utilities.startLog('debug');
     console.debug = function(msg) {
       var log = ['[', (new Date()).toISOString(), ']: ', msg];
@@ -721,7 +721,7 @@
 
     WinJS.Promise.onerror = function(e) {
       var ex = e.detail.exception || e.detail.error,
-        i, len;
+          i, len;
 
       ex = Array.isArray(ex) ? ex : [ex];
 
