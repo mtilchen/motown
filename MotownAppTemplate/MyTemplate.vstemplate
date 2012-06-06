@@ -1,0 +1,41 @@
+<VSTemplate Version="3.0.0" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" Type="Project">
+  <TemplateData>
+    <Name>Motown App</Name>
+    <Description>A template for creating a new Motown application.</Description>
+    <ProjectType>JavaScript</ProjectType>
+    <ProjectSubType>
+    </ProjectSubType>
+    <SortOrder>1000</SortOrder>
+    <CreateNewFolder>true</CreateNewFolder>
+    <DefaultName>Motown App</DefaultName>
+    <ProvideDefaultName>true</ProvideDefaultName>
+    <LocationField>Enabled</LocationField>
+    <EnableLocationBrowseButton>true</EnableLocationBrowseButton>
+    <Icon>__TemplateIcon.ico</Icon>
+  </TemplateData>
+  <TemplateContent>
+    <Project TargetFileName="$safeprojectname$.jsproj" File="MotownTemplate.jsproj" ReplaceParameters="true">
+      <Folder Name="controllers" TargetFolderName="controllers" />
+      <Folder Name="css" TargetFolderName="css">
+        <ProjectItem ReplaceParameters="true" TargetFileName="motown.css">motown.css</ProjectItem>
+      </Folder>
+      <Folder Name="images" TargetFolderName="images">
+        <ProjectItem ReplaceParameters="false" TargetFileName="logo.png">logo.png</ProjectItem>
+        <ProjectItem ReplaceParameters="false" TargetFileName="smalllogo.png">smalllogo.png</ProjectItem>
+        <ProjectItem ReplaceParameters="false" TargetFileName="splashscreen.png">splashscreen.png</ProjectItem>
+        <ProjectItem ReplaceParameters="false" TargetFileName="storelogo.png">storelogo.png</ProjectItem>
+      </Folder>
+      <Folder Name="js" TargetFolderName="js">
+        <ProjectItem ReplaceParameters="true" TargetFileName="application.js">application.js</ProjectItem>
+        <ProjectItem ReplaceParameters="true" TargetFileName="motown.js">motown.js</ProjectItem>
+      </Folder>
+      <Folder Name="models" TargetFolderName="models" />
+      <Folder Name="views" TargetFolderName="views">
+        <ProjectItem ReplaceParameters="true" TargetFileName="home.html">home.html</ProjectItem>
+      </Folder>
+      <ProjectItem ReplaceParameters="true" TargetFileName="default.html">default.html</ProjectItem>
+      <ProjectItem ReplaceParameters="true" TargetFileName="$safeprojectname$_TemporaryKey.pfx">MotownTemplate_TemporaryKey.pfx</ProjectItem>
+      <ProjectItem ReplaceParameters="true" TargetFileName="package.appxmanifest">package.appxmanifest</ProjectItem>
+    </Project>
+  </TemplateContent>
+</VSTemplate>
