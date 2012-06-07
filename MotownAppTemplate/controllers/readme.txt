@@ -1,0 +1,1 @@
+Put the JS files for your controller classes in this folder.

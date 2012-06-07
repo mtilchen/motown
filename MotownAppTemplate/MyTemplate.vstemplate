@@ -15,7 +15,6 @@
   </TemplateData>
   <TemplateContent>
     <Project TargetFileName="$safeprojectname$.jsproj" File="MotownTemplate.jsproj" ReplaceParameters="true">
-      <Folder Name="controllers" TargetFolderName="controllers" />
       <Folder Name="css" TargetFolderName="css">
         <ProjectItem ReplaceParameters="true" TargetFileName="motown.css">motown.css</ProjectItem>
       </Folder>
@@ -29,9 +28,14 @@
         <ProjectItem ReplaceParameters="true" TargetFileName="application.js">application.js</ProjectItem>
         <ProjectItem ReplaceParameters="true" TargetFileName="motown.js">motown.js</ProjectItem>
       </Folder>
-      <Folder Name="models" TargetFolderName="models" />
       <Folder Name="views" TargetFolderName="views">
         <ProjectItem ReplaceParameters="true" TargetFileName="home.html">home.html</ProjectItem>
+      </Folder>
+      <Folder Name="models" TargetFolderName="models">
+        <ProjectItem ReplaceParameters="true" TargetFileName="readme.txt">readme.txt</ProjectItem>
+      </Folder>
+      <Folder Name="controllers" TargetFolderName="controllers">
+        <ProjectItem ReplaceParameters="true" TargetFileName="readme.txt">readme.txt</ProjectItem>
       </Folder>
       <ProjectItem ReplaceParameters="true" TargetFileName="default.html">default.html</ProjectItem>
       <ProjectItem ReplaceParameters="true" TargetFileName="$safeprojectname$_TemporaryKey.pfx">MotownTemplate_TemporaryKey.pfx</ProjectItem>

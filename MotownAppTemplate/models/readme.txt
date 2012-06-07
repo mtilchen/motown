@@ -1,0 +1,1 @@
+Put the JS files for your model objects in this folder.
