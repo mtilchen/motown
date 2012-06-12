@@ -59,7 +59,7 @@ Now open the "js/application.js" file to find all the code for the new applicati
       });
 ```
 
-Compile and run. Enjoy.
+Build and run. Enjoy.
 
 ## License ##
 
