@@ -23,67 +23,76 @@
   var controllerCache = [],
       contentLoadedPromise;
 
+  /**
+   * @class MT
+   * @singleton
+   *
+   * Namespace for Motown library.
+   */
   WinJS.Namespace.define('MT', {
-    AppController: WinJS.Class.define(function (element, config) {
+    /**
+     * @class MT.AppController
+     *
+     * This class provides an abstraction for the currently running Motown application.
+     * Refer to: {@link MT#App} in your application.
+     */
+    AppController: WinJS.Class.define(
+      /**
+       * @constructor
+       *
+       * Creates a new AppController instance.
+       *
+       * @param element The top level DOM element of the application
+       * @param config  The configuration object passed to {@link MT#configApp}
+       */
+      function (element, config) {
 
-      MT.apply(this, config || {});
+        MT.apply(this, config || {});
 
-      if (!Array.isArray(this.pages) || !this.pages.length) {
-        throw 'You must include an array of "pages" in your configuration';
-      }
-
-      Object.defineProperties(this, {
-        _pageDefs:          { value: {},      enumerable: false, configurable: false, writable: false },
-        _pageMap:           { value: {},      enumerable: false, configurable: false, writable: false },
-        _controllerCtorMap: { value: {},      enumerable: false, configurable: false, writable: false },
-        _element:           { value: element, enumerable: false, configurable: false, writable: false }
-      });
-
-      // Setup page definitions
-      for (var i = 0, l = this.pages.length; i < l; i++) {
-        var def = this.pages[i];
-        if (typeof def === 'string') {
-          this._pageDefs[def] = {}; // Empty definition, uses defaults
+        if (!Array.isArray(this.pages) || !this.pages.length) {
+          throw 'You must include an array of "pages" in your configuration';
         }
-        else if (def && (typeof def === 'object')) {
-          this._pageDefs[def.name] = def;
+
+        Object.defineProperties(this, {
+          _pageDefs:          { value: {},      enumerable: false, configurable: false, writable: false },
+          _pageMap:           { value: {},      enumerable: false, configurable: false, writable: false },
+          _controllerCtorMap: { value: {},      enumerable: false, configurable: false, writable: false },
+          _element:           { value: element, enumerable: false, configurable: false, writable: false }
+        });
+
+        // Setup page definitions
+        for (var i = 0, l = this.pages.length; i < l; i++) {
+          var def = this.pages[i];
+          if (typeof def === 'string') {
+            this._pageDefs[def] = {}; // Empty definition, uses defaults
+          }
+          else if (def && (typeof def === 'object')) {
+            this._pageDefs[def.name] = def;
+          }
         }
-      }
 
-      // Register with WinJS nav system
-      var me = this;
-      WinJS.Navigation.addEventListener('beforenavigate', function (e) {
-        me.onBeforeNavigate(e.detail.location, e.detail.state, e);
-      });
-      WinJS.Navigation.addEventListener('navigating', function (e) {
-        me.onNavigate(e.detail.location, e.detail.state, e);
-      });
+        // Register with WinJS nav system
+        var me = this;
+        WinJS.Navigation.addEventListener('beforenavigate', function (e) {
+          me.onBeforeNavigate(e.detail.location, e.detail.state, e);
+        });
+        WinJS.Navigation.addEventListener('navigating', function (e) {
+          me.onNavigate(e.detail.location, e.detail.state, e);
+        });
 
-      // Setup the app's namespace if specified
-      if ((typeof this.namespace === 'string') && this.namespace.length) {
-        this.namespace = WinJS.Namespace.define(this.namespace);
-      }
-      else {
-        this.namespace = window;
-      }
+        // Setup the app's namespace if specified
+        if ((typeof this.namespace === 'string') && this.namespace.length) {
+          this.namespace = WinJS.Namespace.define(this.namespace);
+        }
+        else {
+          this.namespace = window;
+        }
 
-      // Add key listeners that listen on the bubble up phase, allowing other listeners to go the first.
-      // Dispatch to the active controller, The active controller is the one associated with the currently
-      // active view. It should be the only one present in the DOM
-      ['keypress', 'keyup', 'keydown'].forEach(function(ename) {
-        var methodName = 'key' + ename[3].toUpperCase() + ename.slice(4);
-        document.body.addEventListener(ename, function(ev) {
-          var view = WinJS.Utilities.query('div[data-motown-owner-index]')[0],
-              idx = parseInt(view.getAttribute('data-motown-owner-index')),
-              controller = controllerCache[idx];
-          controller[methodName](ev);
-        }, false);
-      });
-      // Setup converter functions for use in bindings
-      Object.keys(this.converters || {}).forEach(function(name) {
-        me.converters[name] = new WinJS.Binding.converter(me.converters[name]);
-      });
-    },{
+        // Setup converter functions for use in bindings
+        Object.keys(this.converters || {}).forEach(function(name) {
+          me.converters[name] = new WinJS.Binding.converter(me.converters[name]);
+        });
+      },{
       // Information about the applications activation, save from the activation event
       activationDetails: null,
       // The page name to initially navigate to
@@ -108,18 +117,14 @@
         // Load controller JS file dynamically before looking for the constructor function
         var s = document.createElement('script'),
             head = document.getElementsByTagName('head')[0],
-            // 'a.b.c.ControllerName -> controllers/a/b/c/ControllerName.js
-            path = 'controllers/' + controllerCtorKey.replace('.', '/') + '.js',
-            resourceMap = Windows.ApplicationModel.Resources.Core.ResourceManager.current.mainResourceMap;
+            // 'a.b.c.ControllerName -> /controllers/a/b/c/ControllerName.js
+            path = '/controllers/' + controllerCtorKey.replace('.', '/') + '.js';
 
-        try {
-          if (resourceMap.hasKey('Files/' + path)) {
-            s.setAttribute('src', path);
-            // This should be asynchronous but isn't in this environment, so no need for a Promise
-            head.appendChild(s);
-          }
+        if (MT.resourceExists(path)) {
+          s.setAttribute('src', path);
+          // This should evaluate the script asynchronously but does not in this environment, so no need for a Promise
+          head.appendChild(s);
         }
-        catch (e) { /* This should not throw according to the docs, but it does. We can safely ignore it. */ }
 
         // Use 'controllerClass' when fully qualified name for a controller class differs from its path on disk
         if (pageDef.controllerClass) {
@@ -137,7 +142,12 @@
         this._controllerCtorMap[controllerCtorKey] = ctor;
         return ctor;
       },
-      // Loads the page's view and controller, returns the controller
+      /**
+       * Loads the page's view and controller, returns the controller.
+       *
+       * @private
+       * @param {String} name The name of the page to load.
+       */
       _loadPage: function(name) {
         var controller = controllerCache[this._pageMap[name]],
             def = this._pageDefs[name],
@@ -168,14 +178,31 @@
           return WinJS.Promise.wrap(controller);
         }
       },
-        // Runs after DOMContentLoaded, use it to initialize global state
+      /**
+       * Override this method to initialize any application-scoped state or to perform any other one-time
+       * initialization tasks. This method is called after the DOMContentLoaded event fires but
+       * before any page navigation occurs.
+       * @template
+       */
       init: function() {},
       onActivation: function (kind, previousState, e) {
         if (kind === Windows.ApplicationModel.Activation.ActivationKind.launch) {
           WinJS.Navigation.navigate(this.homePage);
         }
       },
-      onCheckpoint: function(event) {}, // AKA onSuspending
+      /**
+       * Override this method to perform an action before your application transitions from "running" to "suspended".
+       *
+       * @template
+       * @param event The event passed to [WinJS.Application.oncheckpoint](http://msdn.microsoft.com/en-us/library/windows/apps/br229839.aspx)
+       */
+      onCheckpoint: function(event) {},
+      /**
+       * Override this method to respond to your application transitioning from "suspended" to "running".
+       *
+       * @template
+       * @param event The event passed to [Windows.UI.WebUI.WebUIApplication.onresuming](http://msdn.microsoft.com/en-us/library/windows/apps/windows.ui.webui.webuiapplication.resuming.aspx)
+       */
       onResume: function(event) {},
       onBeforeNavigate: function (location, state, e) {
 
@@ -220,6 +247,7 @@
                 return controller._processBindings();
               });
             }).done(function() {
+              controller.viewEl.focus();
               controller.afterNavigateIn(context);
             });
          }
@@ -228,13 +256,30 @@
             WinJS.Promise.as(controller.beforeNavigateIn(context)).then(function() {
              return controller._processBindings();
            }).done(function () {
+             controller.viewEl.focus();
              controller.afterNavigateIn(context);
           });
          }
         });
       }
+      //TODO: Add global key listener template methods that listen for all key events on the document's body element.
     }),
 
+    /**
+     * @property App
+     * The instance of {@link MT.AppController} representing the currently running application.
+     *
+     * @member MT
+     */
+
+    /**
+     * Copies <code>src</code>'s <b>own</b> enumerable properties to <code>dst</code>.
+     *
+     * @member MT
+     * @param  {Object} dst The object copy properties <b>to</b>.
+     * @param  {Object} src The object to copy properties <b>from</b>.
+     * @return {Object} The object passes in the <code>dst</code> parameter.
+     */
     apply: function(dst, src) {
       var props = Object.keys(src || {}),
           i, l;
@@ -249,7 +294,27 @@
     loadView: function(view, viewCls) {
       var viewName = view.replace(/.html$/,''),
           viewPath = '/views/' + viewName + '.html',
-          viewEl = document.createElement('div');
+          viewCSSPath = '/css/' + viewName + '.css',
+          viewEl = document.createElement('div'),
+          cssLoaded = false,
+          i, l;
+
+      // Load /css/viewcategory/viewname.css (if needed)
+      if (MT.resourceExists(viewCSSPath)) {
+        for (i = 0, l = document.styleSheets.length; i < l; i++) {
+          if (document.styleSheets[i].href === viewCSSPath) {
+            cssLoaded = true;
+            break;
+          }
+        }
+        if (!cssLoaded) {
+          var cssEl = document.createElement('link');
+          cssEl.rel = 'stylesheet';
+          cssEl.href = viewCSSPath;
+          document.head.appendChild(cssEl);
+          //TODO: Disable the stylesheet for this view's page in the document when viewEl is not in the DOM.
+        }
+      }
 
       WinJS.Utilities.addClass(viewEl, 'motown-view');
       WinJS.Utilities.addClass(viewEl, viewCls || viewName.replace('/', '-')); // View @ /views/viewcategory/viewname.html gets class: viewcategory-viewname
@@ -277,6 +342,25 @@
         throw 'You must provide a view name and a controller instance to connect it to';
       }
     },
+    /**
+     * Determines if a file exists at a given path in the running application's app package.
+     *
+     * @member MT
+     * @param {String} path The path to check in the application package (absolute path)
+     * @return {Boolean} <code>true</code> if the file exists, <code>false</code> otherwise.
+     */
+    resourceExists: function(path) {
+      var resourceMap = Windows.ApplicationModel.Resources.Core.ResourceManager.current.mainResourceMap,
+          root = (path && path[0] === '/') ? 'Files' : 'Files/';
+
+      try {
+        if (resourceMap.hasKey(root + path)) {
+          return true;
+        }
+      }
+      catch (e) { /* This should not throw according to the docs, but it does. We can safely ignore it. */ }
+      return false;
+    },
 
     dialog: function(msg, title, commands, defaultIdx, cancelIdx) {
       //TODO: Turn this into a single 'options' argument and document
@@ -303,6 +387,20 @@
       return md.showAsync();
     },
 
+    /**
+     * Creates a URL with base and parameter components.
+     * Use the returned value for calls to WinJS.xhr
+     *
+     *     MT.toURL('http://my.host.net/base', {
+     *       param1: 'value 1',
+     *       param2: 2112
+     *     });
+     *
+     * @member MT
+     * @param  {String} base   The base URI
+     * @param  {Object} params A map of name/value pairs to use as URL parameters
+     * @return {String} The full URL, uri-encoded
+     */
     toURL: function(base, params) {
       var names = Object.keys(params || {}),
           pairs = new Array(names.length),
@@ -320,6 +418,11 @@
     },
 
     //TODO: Make this more general purpose
+    /**
+     * @private
+     * @param startEl
+     * @return {Object}
+     */
     findParent: function(startEl) {
       if (startEl) {
         if (startEl.hasAttribute('data-motown-owner-index')) {
@@ -332,6 +435,18 @@
       else  { return null; }
     },
 
+    /**
+     * Entry point function for starting Motown applications.
+     * The <code>config</code> parameter is used to construct an instance of {@link MT.AppController}.
+     * You can override any of the template methods in {@link MT.AppController} such as  {@link MT.AppController#onCheckpoint}
+     * to suit the needs of your application.
+     *
+     * @member MT
+     * @param {Object}  config             The application configuration
+     * @param {String}  [config.name]      The application name
+     * @param {String}  [config.namespace] The namespace for the application (defaults to window)
+     * @param {Mixed[]} config.pages       An array of page definition objects
+     */
     configApp: function(config) {
       contentLoadedPromise = WinJS.Utilities.ready(function() {
         var hostEl = document.createElement('div');
@@ -346,16 +461,37 @@
       });
     },
 
-    App: null, // The singleton instance of an ApplicationController representing the application
-
     //TODO: Need dispose() method
+    /**
+     * @class MT.PageController
+     *
+     * Base class for all Motown controllers.
+     */
     PageController: WinJS.Class.define(function (element, config) {
       MT.apply(this, config);
       Object.defineProperties(this, {
-        viewEl:  { value: element,     writable: !element, enumerable: true, configurable: false },
-        refs:    { value: {},          writable: false,    enumerable: true, configurable: false }
+        viewEl:  { value: element, writable: !element, enumerable: true, configurable: false },
+        refs:    { value: {},      writable: false,    enumerable: true, configurable: false }
       });
     },{
+
+      /**
+       * @property viewEl The DOM element representing the view associated with this controller.
+       * @readonly
+       */
+
+      /**
+       * @property refs The property names of this object correspond to the <code>data-motown-refs</code>
+       * declarations defined in this controller's associated view.
+       * @readonly
+       */
+
+      /**
+       * @private
+       * Establishes references to declared "refs" in this controller's view.
+       * Refs are defined in the "refs" property of this controller according to the name
+       * configured in the view.
+       */
       _processRefs: function() {
         var refEls = WinJS.Utilities.query('*[data-motown-ref]', this.viewEl),
             self = this;
@@ -421,23 +557,94 @@
         });
         return WinJS.Promise.join(promises);
       },
+      _bindKeyEvents: function() {
+        var me = this;
+
+        ['keypress', 'keyup', 'keydown'].forEach(function(ename) {
+          var methodName = 'key' + ename[3].toUpperCase() + ename.slice(4);
+          me.viewEl.addEventListener(ename, function(ev) {
+            me[methodName](ev);
+          }, false);
+        });
+      },
       _initView: function() {
         if (this.viewEl) {
           this._processRefs();
           this._processActions();
+          this._bindKeyEvents();
           this.viewReady(this.viewEl);
         }
       },
+      /**
+       * This method is called once, right after the view is loaded for the page this controller is part of.
+       * All refs and actions are established beforehand and {@link MT.PageController#viewEl} is available and
+       * in the DOM. Use this to initialize a page before it gets inserted into the main document and becomes
+       * the active page.
+       *
+       * @template
+       * @param view A reference to this controller's {@link MT.PageController#viewEl} for convenience.
+       */
       viewReady: function(view) {},
-      beforeNavigateIn: function(context) {},
-      afterNavigateIn: function(context) {},
+      /**
+       * Runs before navigation away from a page. This is the first of the the four navigation life-cycle methods to
+       * be called during a navigation sequence. This controller's {@link MT.PageController#viewEl} is still in the
+       * document's DOM tree at this point.
+       *
+       * @template
+       * @param context A reference to the [state](http://msdn.microsoft.com/en-us/library/windows/apps/br229850.aspx)
+       * object passed to [WinJS.Navigation.navigate](http://msdn.microsoft.com/en-us/library/windows/apps/br229837.aspx).
+       * This parameter is an empty object when 'back' and 'forward' were used for navigation.
+       */
       beforeNavigateOut: function(context) {},
+      /**
+       * Runs after navigation away from a page. This is the second of the four navigation life-cycle methods to
+       * be called during a navigation sequence. This controller's {@link MT.PageController#viewEl} has just been
+       * removed from the document's DOM tree at this point.
+       *
+       * @template
+       * @param context A reference to the [state](http://msdn.microsoft.com/en-us/library/windows/apps/br229850.aspx)
+       * object passed to [WinJS.Navigation.navigate](http://msdn.microsoft.com/en-us/library/windows/apps/br229837.aspx).
+       * This parameter is an empty object when 'back' and 'forward' were used for navigation.
+       */
       afterNavigateOut: function(context) {},
+      /**
+       * Runs before navigation to a page. This is the third of the four navigation life-cycle methods to
+       * be called during a navigation sequence. This controller's {@link MT.PageController#viewEl} has just been
+       * inserted into the document's DOM tree at this point.
+       *
+       * @template
+       * @param context A reference to the [state](http://msdn.microsoft.com/en-us/library/windows/apps/br229850.aspx)
+       * object passed to [WinJS.Navigation.navigate](http://msdn.microsoft.com/en-us/library/windows/apps/br229837.aspx).
+       * This parameter is an empty object when 'back' and 'forward' were used for navigation.
+       */
+      beforeNavigateIn: function(context) {},
+      /**
+       * Runs after navigation away to a page. This is the last of the four navigation life-cycle methods to
+       * be called during a navigation sequence. This controller's {@link MT.PageController#viewEl} has just been
+       * inserted into the document's DOM tree at this point.
+       *
+       * @template
+       * @param context A reference to the [state](http://msdn.microsoft.com/en-us/library/windows/apps/br229850.aspx)
+       * object passed to [WinJS.Navigation.navigate](http://msdn.microsoft.com/en-us/library/windows/apps/br229837.aspx).
+       * This parameter is an empty object when 'back' and 'forward' were used for navigation.
+       */
+      afterNavigateIn: function(context) {},
+      /**
+       * Implement this template method to receive this type of key events from this controller's
+       * {@link MT.PageController#viewEl} and any of its descendant elements in the DOM.
+       *
+       * @template
+       * @param e The event object associated with the key event.
+       */
       keyPress: function (e) {},
+      /**
+       * @inheritdoc #keyPress
+       */
       keyUp: function(e) {},
-      keyDown: function (e) { },
-      viewEl: null,
-      refs: null
+      /**
+       * @inheritdoc #keyPress
+       */
+      keyDown: function (e) { }
     })
   });
 
@@ -601,12 +808,17 @@
   });
 
   WinJS.Namespace.defineWithParent(MT, 'UI', {
-    // Allows users to specify "dot separated" paths to WinJS.UI.ListView datasources as Strings in data-win-options.
-    // For templates, the Strings are interpreted as DOM ids or paths relative to the owner controller's refs object.
-    // Paths for datasources are relative to the owning controller. The owner controller is found by
-    // looking up the ListView's ancestry for the containing "view" and retrieving the controller from the cache with
-    // the value of the 'data-motown-owner-index' attribute for the first 'view' element found in the ancestry.
-    // A 'view' is any element with a value specified for the attribute 'data-motown-owner-index'.
+
+    /**
+     * @class MT.UI.ListView
+     *
+     * Allows users to specify "dot separated" paths to WinJS.UI.ListView datasources as Strings in data-win-options.
+     * For templates, the Strings are interpreted as DOM ids or paths relative to the owner controller's refs object.
+     * Paths for datasources are relative to the owning controller. The owner controller is found by
+     * looking up the ListView's ancestry for the containing "view" and retrieving the controller from the cache with
+     * the value of the 'data-motown-owner-index' attribute for the first 'view' element found in the ancestry.
+     * A 'view' is any element with a value specified for the attribute 'data-motown-owner-index'.
+     */
     ListView: WinJS.Class.derive(WinJS.UI.ListView, function(el, config) {
 
       var containingView,
@@ -641,27 +853,76 @@
       }
       WinJS.UI.ListView.call(this, el, config);
     }),
+    /**
+     * @class MT.UI.KeyedDataSource
+     *
+     * An extension of [WinJS.UI.VirtualizedDataSource](http://msdn.microsoft.com/en-us/library/windows/apps/hh701413.aspx)
+     * that provides both index-based and key-based storage/retrieval.
+     */
     KeyedDataSource: WinJS.Class.derive(WinJS.UI.VirtualizedDataSource, function(items, options) {
 
+      /**
+       * Creates a new datasource instance.
+       *
+       * @constructor
+       *
+       * @param {Array}   items
+       * @param {Object}  [options] The options to use in configuration of this datasource.
+       * @param {Boolean} [options.binding="false"]   <code>true</code> to make values in this datasource bindable.
+       * @param {String}  [options.keyProperty="key"] The name of the property to use as keys for this datasource.
+       */
       var adapter = new keyedDataAdapter(items, options);
       this._baseDataSourceConstructor(adapter);
 
       // Use the closure pattern here as MS went to great lengths not to expose the adapter in the datasource, let's do the same
+      /**
+       * Determines if a value exists in this datasource for a given key.
+       * @param {String} key A key
+       * @return {Boolean} <code>true</code> if a value exists for the key, <code>false</code> otherwise.
+       */
       this.containsKey = function(key) {
         return !!adapter._keyMap[key];
       };
+      /**
+       * Computes the list of keys in this datasource in no guaranteed order.
+       *
+       * @return {Array} All of the keys that exist in this datasource.
+       */
       this.getKeys = function() {
         return Object.keys(adapter._keyMap);
       };
+      /**
+       * Retrieves the value in this datasource for a given key.
+       *
+       * @param {String} key A key
+       * @return {Mixed} The value corresponding to the supplied key.
+       */
       this.get = function(key) {
         return (adapter._keyMap[key] || {}).data;
       };
+      /**
+       * Retrieves the value in this datasource at a particular index.
+       *
+       * @param {Number} idx An index
+       * @return {Mixed} The value at the specified index.
+       */
       this.getAt = function(idx) {
         return (adapter._items[idx] || {}).data;
       };
+      //TODO: setAt(idx,val)
+      /**
+       * Sets the data to be used in this datasource.
+       *
+       * @param {Array} data The new data for this datasource
+       */
       this.setData = function(data) {
         adapter._initItems(data);
       };
+      /**
+       * Sorts this datasource in-place using the specified sort function.
+       *
+       * @param {Function} sortFn The sort function to sort the items with.
+       */
       this.sort = function(sortFn) {
         var len = adapter._items.length,
             editing = adapter._editing,
@@ -698,6 +959,10 @@
           this.endEdits();
         }
       };
+      /**
+       * @property {Number} length The number of items in this datasource.
+       * @readonly
+       */
       Object.defineProperty(this, 'length', {
         get: function() {
           return adapter._items.length;
@@ -707,7 +972,7 @@
     })
   });
 
-  Object.preventExtensions(MT);
+  //Object.preventExtensions(MT);
   Object.freeze(MT.UI);
 
   // Set up a debug log, turn on first chance exceptions and log uncaught exceptions
