@@ -8,6 +8,6 @@ MT.configApp({
     /* Initialize application state here */
   },
   pages: [
-  'home'
+    'home'
   ]
 });
