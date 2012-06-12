@@ -1,7 +1,7 @@
 
 # _Motown_: An MVC library for Metro-style apps targeting JS/HTML5/CSS3 #
 
-Motown is designed to help you build Metro-style apps that are maintainable and have great performance, with as
+Motown is designed to help you build Metro-style apps based on web technologies that are maintainable and have great performance, using as
 little code as possible. It makes smaller applications easy and larger complex applications possible.
 
 ## Goals ##
@@ -25,13 +25,41 @@ little code as possible. It makes smaller applications easy and larger complex a
 
 ## Getting Started ##
 
-The simplest possible Motown application:
++ Download a tagged release (and unzip) or clone Motown from the public repository.
++ Copy the __“MotownAppTemplate”__ folder from the Motown root directory into: __%HOMEPATH%\\Documents\\Visual Studio 2012\\Templates\\ProjectTemplates\\JavaScript.__
++ Open Visual Studio (2012 RC and higher) and create a “New Project”.
++ In the “New Project” dialog select: “Templates -> JavaScript” and then “Motown App” from the list on the right.
++ Enter a name for your project and click “OK”.
 
+On disk, your new project looks like:
+
+    + Project Root
+    |--+ views
+    |      |-- home.html
+    |--+ controllers
+    |--+ models
+    |--+ images
+    |--+ css
+    |     |--motown.css
+    |     |--home.css
+    |--+ js
+    |    |-- motown.js
+    |    |-- application.js
+    |-- default.html
+
+Now open the "js/application.js" file to find all the code for the new application:
+
+```javascript
       MT.configApp({
-        name: 'Hello World',
-        namespace: 'HW',
-        pages: ['home']
+        name: 'New Project Name',
+        namespace: 'My.NS',
+        pages: [
+          'home'
+        ]
       });
+```
+
+Compile and run. Enjoy.
 
 ## License ##
 
