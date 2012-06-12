@@ -1,0 +1,16 @@
+[
+  {
+    "name": "MT",
+    "groups": [
+      {
+        "name": "Base",
+        "classes": [
+          "MT", "MT.*Controller" ]
+      },
+      {
+        "name": "UI",
+        "classes": [
+          "MT.UI.*" ]
+      }]
+  }
+]
