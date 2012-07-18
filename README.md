@@ -65,6 +65,10 @@ Build, run and enjoy.
 
 + [API Documentation](http://mtilchen.github.com/motown)
 
+## Download ##
+
+[Download the latest stable release](http://labs.vectorform.com/wp-content/uploads/2012/07/mtilchen-motown-v0.1.1.zip)
+
 ## License ##
 
 Motown is distributed under the LGPL v3 license. Please refer to the included 'LICENSE' file for more information.
