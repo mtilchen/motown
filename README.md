@@ -1,7 +1,7 @@
 
 # _Motown_: Easy JavaScript Apps for Metro #
 
-Motown is designed to help you build Metro-style apps based on web technologies that are maintainable and have great performance, using as
+Motown is a library designed to help you build Metro-style apps based on web technologies that are maintainable and have great performance, using as
 little code as possible. It makes smaller applications easy and larger more complex applications possible.
 
 ## Goals ##
@@ -60,6 +60,10 @@ In Visual Studio open the "js/application.js" file to find all the code for the 
 ```
 
 Build, run and enjoy.
+
+## Documentation ##
+
++ [API Documentation](http://mtilchen.github.com/motown)
 
 ## License ##
 
