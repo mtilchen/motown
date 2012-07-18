@@ -1,0 +1,47 @@
+
+/* "NORTH REGION" = Header */    
+
+#north-region {   
+	height: 100px !important; 
+	background-color: #404040 !important;
+	background-image: linear-gradient(to bottom, #000000, #494949) !important;
+    background-image: -webkit-linear-gradient(top, #000000, #494949) !important;
+    background-image: -moz-linear-gradient(top, #000000, #494949) !important;
+    background-image: -ms-linear-gradient(top, #000000, #494949) !important;
+}
+#north-region-innerCt{
+	height: 100px !important;
+}
+#north-region-targetEl{
+	height: 100px !important;
+}
+#container-1001{
+	height: 80px !important;
+} 
+.search {
+	background: url(../images/search-box.png) no-repeat;
+	padding: 2px 0 0 25px; 
+	color:#000 !important;
+}
+#header-content {
+	background: url(../images/logo.png) 0 0 no-repeat;
+	padding: 79px 0 0 187px !important;
+	text-indent: -5000px !important;
+}
+/* TABS */  
+#doctabs, .doctabs{
+	top: 75px !important;
+}
+
+/* BODY STUFF */   
+a {
+	color: #ed1c7a !important;
+	text-decoration: none;  
+}
+
+#center-container h1 {
+	color: #227997 !important;  
+} 
+#container-1004{
+	top: 100px !important;
+}
