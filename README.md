@@ -1,4 +1,4 @@
-
+﻿
 # _Motown_: Easy JavaScript Apps for Metro #
 
 Motown is a library designed to help you build Metro-style apps based on web technologies that are maintainable and have great performance, using as
@@ -67,7 +67,7 @@ Build, run and enjoy.
 
 ## Download ##
 
-[Download the latest stable release](http://labs.vectorform.com/wp-content/uploads/2012/07/mtilchen-motown-v0.1.1.zip)
+[Download the latest stable release](http://labs.vectorform.com/wp-content/uploads/2012/07/motown-v0.1.1.zip)
 
 ## License ##
 
