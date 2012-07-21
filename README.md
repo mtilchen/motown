@@ -59,7 +59,53 @@ In Visual Studio open the "js/application.js" file to find all the code for the 
   });
 ```
 
-Build, run and enjoy.
+Build and run. Now keep the following in mind as you build your app to reduce boilerplate and glue code.
+
+### Add "refs" to your views, use them in your controllers ###
+
+In your view, use the "data-motown-ref" attribute to reference any control/element:
+
+```html
+  <div id="somemarkup">
+    <button data-win-motown-ref="submitButton">Submit</button>
+  </div>
+```
+
+Use the reference in your controller with the "refs" property.
+
+```javascript
+   // in a controller method
+  this.refs.submitButton.style.display = 'none';
+```
+
+### Add "actions" to controls in your view, handle the events in your controllers ###
+
+Use the "data-motown-action" attribute to declaratively bind control events to controller methods.
+
+```html
+  <div id="somemarkup">
+    <button data-win-motown-actions="{ click: 'onBack' }">Back</button>
+  </div>
+```
+
+Your controller method named 'onBack' will be called when the button's 'click' event is fired.
+
+```javascript
+  onBack: function(ev) {
+    WinJS.Navigation.back();
+    // Do something else...
+  }
+```
+
+Or instead of binding a controller method, you can run a snippet of code:
+
+```html
+  <div id="somemarkup">
+    <button data-win-motown-actions="{ click: 'WinJS.Navigation.back();' }">Back</button>
+  </div>
+```
+
+The snippet runs in the scope of the Page's controller.
 
 ## Documentation ##
 
