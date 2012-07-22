@@ -110,6 +110,7 @@ The snippet runs in the scope of the Page's controller.
 ## Documentation ##
 
 + [API Documentation](http://mtilchen.github.com/motown)
++ [Intro to Motown + tutorial on navigation and application configuration](http://labs.vectorform.com/2012/07/motown-easy-javascript-apps-for-metro-part-1/)
 
 ## Download ##
 
