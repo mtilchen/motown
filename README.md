@@ -27,7 +27,7 @@ little code as possible. It makes smaller applications easy and larger more comp
 
 + Download a tagged release (and unzip) or clone Motown from the public repository.
 + Copy the __“MotownAppTemplate”__ folder from the Motown root directory into: __%HOMEPATH%\\Documents\\Visual Studio 2012\\Templates\\ProjectTemplates\\JavaScript.__
-+ Open Visual Studio (2012 RC and higher) and create a “New Project”.
++ Open Visual Studio 2012 and create a “New Project”.
 + In the “New Project” dialog select: “Templates -> JavaScript” and then “Motown App” from the list on the right.
 + Enter a name for your project and click “OK”.
 
