@@ -114,7 +114,7 @@ The snippet runs in the scope of the Page's controller.
 
 ## Download ##
 
-[Download the latest stable release](http://labs.vectorform.com/wp-content/uploads/2012/07/motown-v0.1.1.zip)
+[Download the latest stable release](https://github.com/mtilchen/motown/zipball/v0.1.2)
 
 ## License ##
 
